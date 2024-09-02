@@ -18,14 +18,16 @@ def encode_image_to_base64(image_url):
         app.logger.error(f"Failed to fetch image: {e}")
         return None
 
-@app.route('/get_certificate', methods=['POST'])
+@app.route('/fetch-data', methods=['POST'])
 def fetch_data():
     data = request.json
 
-    NEW_TIN = data.get('tin_no', '')
-    NID = data.get('nid', '')
-    CONTACT_TELEPHONE = data.get('phone', '')
-    CONTACT_EMAIL_ADDR = data.get('email', '')
+    OLD_TIN = data.get('OLD_TIN', '')
+    NEW_TIN = data.get('NEW_TIN', '')
+    NID = data.get('NID', '')
+    PASSPORT_NUMBER = data.get('PASSPORT_NUMBER', '')
+    CONTACT_TELEPHONE = data.get('CONTACT_TELEPHONE', '')
+    CONTACT_EMAIL_ADDR = data.get('CONTACT_EMAIL_ADDR', '')
 
     common_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
@@ -42,13 +44,13 @@ def fetch_data():
 
     preview_data = {
         'TOKEN_ISSUED': '',
-        'OLD_TIN': '',
+        'OLD_TIN': OLD_TIN,
         'NEW_TIN': NEW_TIN,
         'NID': NID,
         'DOB_DAY': '',
         'DOB_MONTH': '',
         'DOB_YEAR': '',
-        'PASSPORT_NUMBER': '',
+        'PASSPORT_NUMBER': PASSPORT_NUMBER,
         'ASSES_NAME': '',
         'CONTACT_TELEPHONE': CONTACT_TELEPHONE,
         'CONTACT_EMAIL_ADDR': CONTACT_EMAIL_ADDR,
