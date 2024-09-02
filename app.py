@@ -17,7 +17,7 @@ def encode_image_to_base64(image_url):
         app.logger.error(f"Failed to fetch image: {e}")
         return None
 
-@app.route('/fetch-data', methods=['POST'])
+@app.route('/get_certificate', methods=['POST'])
 def fetch_data():
     data = request.json
 
