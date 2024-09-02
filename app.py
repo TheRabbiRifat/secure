@@ -158,5 +158,18 @@ def fetch_data():
 
     return jsonify(credentials)
 
+@app.route('/check-system-status', methods=['GET'])
+def check_system_status():
+    user_agent = request.headers.get('User-Agent')
+
+    # Check if the User-Agent matches the specified value
+    if user_agent == 'Puffinx64, MacBook':
+        return jsonify({
+            'status': 'ok',
+            'message': 'System Working properly'
+        }), 200
+    else:
+        return jsonify({'error': 'Unauthorized User-Agent'}), 403
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)  # Use debug mode for development
