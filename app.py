@@ -21,22 +21,16 @@ def encode_image_to_base64(image_url):
 def fetch_data():
     data = request.json
 
-    # Validate that all required fields are present
-    required_fields = ['OLD_TIN', 'NEW_TIN', 'NID', 'PASSPORT_NUMBER', 'CONTACT_TELEPHONE', 'CONTACT_EMAIL_ADDR']
-    missing_fields = [field for field in required_fields if not data.get(field)]
-    
-    if missing_fields:
-        return jsonify({
-            'error': 'Missing data',
-            'details': f'Missing fields: {", ".join(missing_fields)}'
-        }), 400
+    OLD_TIN = data.get('OLD_TIN', '')
+    NEW_TIN = data.get('NEW_TIN', '')
+    NID = data.get('NID', '')
+    PASSPORT_NUMBER = data.get('PASSPORT_NUMBER', '')
+    CONTACT_TELEPHONE = data.get('CONTACT_TELEPHONE', '')
+    CONTACT_EMAIL_ADDR = data.get('CONTACT_EMAIL_ADDR', '')
 
-    OLD_TIN = data['OLD_TIN']
-    NEW_TIN = data['NEW_TIN']
-    NID = data['NID']
-    PASSPORT_NUMBER = data['PASSPORT_NUMBER']
-    CONTACT_TELEPHONE = data['CONTACT_TELEPHONE']
-    CONTACT_EMAIL_ADDR = data['CONTACT_EMAIL_ADDR']
+    # Check if all fields are empty
+    if not any([OLD_TIN, NEW_TIN, NID, PASSPORT_NUMBER, CONTACT_TELEPHONE, CONTACT_EMAIL_ADDR]):
+        return jsonify({'error': 'No data provided'}), 400
 
     common_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
