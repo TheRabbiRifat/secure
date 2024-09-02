@@ -1,0 +1,132 @@
+from flask import Flask, request, jsonify
+import requests
+from bs4 import BeautifulSoup
+import json
+
+app = Flask(__name__)
+
+@app.route('/fetch-data', methods=['POST'])
+def fetch_data():
+    data = request.json
+    
+    # Extract the relevant field values
+    OLD_TIN = data.get('OLD_TIN', '')
+    NEW_TIN = data.get('NEW_TIN', '')
+    NID = data.get('NID', '')
+    PASSPORT_NUMBER = data.get('PASSPORT_NUMBER', '')
+    CONTACT_TELEPHONE = data.get('CONTACT_TELEPHONE', '')
+    CONTACT_EMAIL_ADDR = data.get('CONTACT_EMAIL_ADDR', '')
+    
+    # Step 1: Login
+    session = requests.Session()
+    login_data = {
+        'LOGON_NAME': 'tc31Chittagong',
+        'LOGON_PASS': 'tc31',
+    }
+    session.post('https://secure.incometax.gov.bd/Registration/Login', headers=common_headers, data=login_data)
+    
+    # Step 2: Make the Preview request with provided data
+    preview_data = {
+        'TOKEN_ISSUED': '',
+        'OLD_TIN': OLD_TIN,
+        'NEW_TIN': NEW_TIN,
+        'NID': NID,
+        'DOB_DAY': '',
+        'DOB_MONTH': '',
+        'DOB_YEAR': '',
+        'PASSPORT_NUMBER': PASSPORT_NUMBER,
+        'ASSES_NAME': '',
+        'CONTACT_TELEPHONE': CONTACT_TELEPHONE,
+        'CONTACT_EMAIL_ADDR': CONTACT_EMAIL_ADDR,
+        'REG_TYPE_NO': '-1',
+        'IS_OLD_TIN': '',
+        'FATH_NAME': '',
+        'ZONE_NO': '-1',
+        'CIRCLE_NO': '-1',
+        'DT_APP_FROM_DAY': '',
+        'DT_APP_FROM_MONTH': '',
+        'DT_APP_FROM_YEAR': '',
+        'DT_APP_TO_DAY': '',
+        'DT_APP_TO_MONTH': '',
+        'DT_APP_TO_YEAR': '',
+        'PAGE_NUM': '1',
+    }
+
+    preview_response = session.post('https://secure.incometax.gov.bd/Preview', headers=common_headers, data=preview_data)
+    preview_soup = BeautifulSoup(preview_response.text, 'html.parser')
+
+    tin_value = None
+    table = preview_soup.find('table', class_='table-bordered')
+    if table:
+        rows = table.find_all('tr')
+        if len(rows) > 2:
+            third_row = rows[2]
+            columns = third_row.find_all('td')
+            if len(columns) > 2:
+                tin_value = columns[2].text.strip()
+
+    if not tin_value:
+        return jsonify({'error': 'TIN not found'}), 400
+
+    # Step 3: Use the extracted TIN value to proceed with the ViewCertificate request
+    review_headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        **common_headers
+    }
+    review_data = {'NEW_TIN': tin_value}
+    review_response = session.post('https://secure.incometax.gov.bd/ViewCertiifcate', headers=review_headers, data=review_data)
+    review_soup = BeautifulSoup(review_response.text, 'html.parser')
+
+    # Extracting credentials
+    credentials = {'TIN': tin_value}
+    field_map = {
+        'name': "Name :",
+        'father_name': "Father's Name :",
+        'mother_name': "Mother's Name :",
+        'current_adress': "Current Address :",
+        'permanent_address': "Permanent Address :",
+        'previous_tin': "Previous TIN :",
+        'status': "Status :",
+        'date': "Date :",
+        'last_update': "Last Update :"
+    }
+
+    for label, field_text in field_map.items():
+        result = review_soup.find(string=lambda x: x and field_text in x)
+        if result:
+            parent = result.parent
+            value = parent.find('span').text.strip() if parent.find('span') else result.split(field_text)[1].strip()
+            credentials[label] = value
+        else:
+            credentials[label] = ""
+
+    qr_img = review_soup.find('img', alt="QR Code")
+    if qr_img:
+        credentials['qr_code'] = qr_img['src']
+
+    deputy_commissioner_info = review_soup.find('span', style="text-align: left; font-size: x-small;")
+    if deputy_commissioner_info:
+        text = deputy_commissioner_info.get_text(separator="\n").strip()
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+        if len(lines) > 1 and lines[0] == 'Deputy Commissioner' and lines[1] == 'of Taxes':
+            lines[0] = f"{lines[0]} {lines[1]}"
+            del lines[1]
+
+        if len(lines) >= 5:
+            credentials['office_name'] = lines[0].strip()
+            credentials['office_circle'] = lines[1].strip()
+            credentials['office_zone'] = lines[2].strip()
+
+            address_line = lines[3]
+            if 'Address :' in address_line:
+                credentials['office_address'] = address_line.split('Address :')[1].strip()
+
+            phone_line = lines[4]
+            if 'Phone :' in phone_line:
+                credentials['office_phone'] = phone_line.split('Phone :')[1].strip()
+
+    return jsonify(credentials)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080, debug=False)  # Use port 8080 for Render and disable debug mode
