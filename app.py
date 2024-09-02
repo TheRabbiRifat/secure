@@ -2,14 +2,26 @@ from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
 import json
+import base64
+from io import BytesIO
 
 app = Flask(__name__)
+
+def encode_image_to_base64(image_url):
+    try:
+        response = requests.get(image_url)
+        response.raise_for_status()
+        image_data = BytesIO(response.content)
+        base64_encoded_image = base64.b64encode(image_data.getvalue()).decode('utf-8')
+        return f"data:image/png;base64,{base64_encoded_image}"
+    except requests.RequestException as e:
+        app.logger.error(f"Failed to fetch image: {e}")
+        return None
 
 @app.route('/fetch-data', methods=['POST'])
 def fetch_data():
     data = request.json
 
-    # Extract the relevant field values
     OLD_TIN = data.get('OLD_TIN', '')
     NEW_TIN = data.get('NEW_TIN', '')
     NID = data.get('NID', '')
@@ -17,14 +29,12 @@ def fetch_data():
     CONTACT_TELEPHONE = data.get('CONTACT_TELEPHONE', '')
     CONTACT_EMAIL_ADDR = data.get('CONTACT_EMAIL_ADDR', '')
 
-    # Common headers including User-Agent
     common_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
         'Accept': '*/*',
         'X-Requested-With': 'XMLHttpRequest',
     }
 
-    # Step 1: Login
     session = requests.Session()
     login_data = {
         'LOGON_NAME': 'tc31Chittagong',
@@ -32,7 +42,6 @@ def fetch_data():
     }
     session.post('https://secure.incometax.gov.bd/Registration/Login', headers=common_headers, data=login_data)
 
-    # Step 2: Make the Preview request with provided data
     preview_data = {
         'TOKEN_ISSUED': '',
         'OLD_TIN': OLD_TIN,
@@ -59,7 +68,12 @@ def fetch_data():
         'PAGE_NUM': '1',
     }
 
-    preview_response = session.post('https://secure.incometax.gov.bd/Preview', headers=common_headers, data=preview_data)
+    try:
+        preview_response = session.post('https://secure.incometax.gov.bd/Preview', headers=common_headers, data=preview_data)
+        preview_response.raise_for_status()
+    except requests.RequestException as e:
+        return jsonify({'error': 'Failed to fetch preview data', 'details': str(e)}), 500
+
     preview_soup = BeautifulSoup(preview_response.text, 'html.parser')
 
     tin_value = None
@@ -75,22 +89,26 @@ def fetch_data():
     if not tin_value:
         return jsonify({'error': 'TIN not found'}), 400
 
-    # Step 3: Use the extracted TIN value to proceed with the ViewCertificate request
     review_headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
         **common_headers
     }
     review_data = {'NEW_TIN': tin_value}
-    review_response = session.post('https://secure.incometax.gov.bd/ViewCertiifcate', headers=review_headers, data=review_data)
+
+    try:
+        review_response = session.post('https://secure.incometax.gov.bd/ViewCertiifcate', headers=review_headers, data=review_data)
+        review_response.raise_for_status()
+    except requests.RequestException as e:
+        return jsonify({'error': 'Failed to fetch review data', 'details': str(e)}), 500
+
     review_soup = BeautifulSoup(review_response.text, 'html.parser')
 
-    # Extracting credentials
     credentials = {'TIN': tin_value}
     field_map = {
         'name': "Name :",
         'father_name': "Father's Name :",
         'mother_name': "Mother's Name :",
-        'current_adress': "Current Address :",
+        'current_address': "Current Address :",
         'permanent_address': "Permanent Address :",
         'previous_tin': "Previous TIN :",
         'status': "Status :",
@@ -109,7 +127,9 @@ def fetch_data():
 
     qr_img = review_soup.find('img', alt="QR Code")
     if qr_img:
-        credentials['qr_code'] = qr_img['src']
+        base64_qr_code = encode_image_to_base64(qr_img['src'])
+        if base64_qr_code:
+            credentials['qr_code'] = base64_qr_code
 
     deputy_commissioner_info = review_soup.find('span', style="text-align: left; font-size: x-small;")
     if deputy_commissioner_info:
