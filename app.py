@@ -8,7 +8,7 @@ app = Flask(__name__)
 @app.route('/fetch-data', methods=['POST'])
 def fetch_data():
     data = request.json
-    
+
     # Extract the relevant field values
     OLD_TIN = data.get('OLD_TIN', '')
     NEW_TIN = data.get('NEW_TIN', '')
@@ -16,7 +16,14 @@ def fetch_data():
     PASSPORT_NUMBER = data.get('PASSPORT_NUMBER', '')
     CONTACT_TELEPHONE = data.get('CONTACT_TELEPHONE', '')
     CONTACT_EMAIL_ADDR = data.get('CONTACT_EMAIL_ADDR', '')
-    
+
+    # Common headers including User-Agent
+    common_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+
     # Step 1: Login
     session = requests.Session()
     login_data = {
@@ -24,7 +31,7 @@ def fetch_data():
         'LOGON_PASS': 'tc31',
     }
     session.post('https://secure.incometax.gov.bd/Registration/Login', headers=common_headers, data=login_data)
-    
+
     # Step 2: Make the Preview request with provided data
     preview_data = {
         'TOKEN_ISSUED': '',
@@ -129,4 +136,4 @@ def fetch_data():
     return jsonify(credentials)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)  # Use port 8080 for Render and disable debug mode
+    app.run(host='0.0.0.0', port=8080, debug=True)  # Use debug mode for development
