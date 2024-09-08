@@ -17,6 +17,12 @@ def encode_image_to_base64(image_url):
         app.logger.error(f"Failed to fetch image: {e}")
         return None
 
+@app.route('/check-json')
+def check_json():
+    return jsonify({"status": "success", "message": "Flask Tin app is running!"})
+
+
+
 @app.route('/get_certificate', methods=['POST'])
 def fetch_data():
     data = request.json
