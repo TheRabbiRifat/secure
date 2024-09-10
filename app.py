@@ -1,26 +1,12 @@
 from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
-import base64
-from io import BytesIO
 
 app = Flask(__name__)
-
-def encode_image_to_base64(image_url):
-    try:
-        response = requests.get(image_url)
-        response.raise_for_status()
-        image_data = BytesIO(response.content)
-        base64_encoded_image = base64.b64encode(image_data.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{base64_encoded_image}"
-    except requests.RequestException as e:
-        app.logger.error(f"Failed to fetch image: {e}")
-        return None
 
 @app.route('/check-json')
 def check_json():
     return jsonify({"status": "success", "message": "Flask Tin app is running!"})
-
 
 
 @app.route('/get_certificate', methods=['POST'])
@@ -136,9 +122,8 @@ def fetch_data():
 
     qr_img = review_soup.find('img', alt="QR Code")
     if qr_img:
-        base64_qr_code = encode_image_to_base64(qr_img['src'])
-        if base64_qr_code:
-            credentials['qr_code'] = base64_qr_code
+        qr_image_url = qr_img['src']
+        credentials['qr_code'] = qr_image_url
 
     deputy_commissioner_info = review_soup.find('span', style="text-align: left; font-size: x-small;")
     if deputy_commissioner_info:
@@ -164,6 +149,7 @@ def fetch_data():
 
     return jsonify(credentials)
 
+
 @app.route('/check-system-status', methods=['GET'])
 def check_system_status():
     user_agent = request.headers.get('User-Agent')
@@ -177,5 +163,6 @@ def check_system_status():
     else:
         return jsonify({'error': 'Unauthorized User-Agent'}), 403
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)  # Use debug mode for development
+    app.run(host='0.0.0.0', port=8080, debug=True)
