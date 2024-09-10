@@ -135,10 +135,10 @@ def fetch_data():
             credentials[label] = ""
 
     qr_img = review_soup.find('img', alt="QR Code")
-    if qr_img:
-        base64_qr_code = encode_image_to_base64(qr_img['src'])
-        if base64_qr_code:
-            credentials['qr_code'] = base64_qr_code
+  if qr_img:
+    qr_code_url = qr_img['src']
+    if qr_code_url:
+        credentials['qr_code'] = qr_code_url
 
     deputy_commissioner_info = review_soup.find('span', style="text-align: left; font-size: x-small;")
     if deputy_commissioner_info:
